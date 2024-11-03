@@ -5,4 +5,15 @@ license = "MIT OR Apache-2.0"
 version = "0.1.0"
 edition = "2021"
 
+[lints.rust]
+missing_docs = "warn"
+
+[lints.clippy]
+# enable clippy lints with priority -1
+# so that we can override certain ones with "allow"
+all = { level = "warn", priority = -1 }
+inline_always = "allow"
+pedantic = { level = "warn", priority = -1 }
+
 [dependencies]
+nalgebra = { version = "0.33.2" }
