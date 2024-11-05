@@ -1,0 +1,3 @@
+# nightly only for now, but will be nice once it's stable
+format_code_in_doc_comments = true
+wrap_comments = true
