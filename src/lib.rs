@@ -130,14 +130,14 @@ impl VqfState {
 ///
 /// # Example
 ///
-/// ```rs
-/// use vqf::VqfParameters;
+/// ```rust
 /// use std::time::Duration;
+/// use vqf::VqfParameters;
 ///
 /// // Initialize the default parameters, but set `tau_acc` to 10 seconds
 /// // making it take longer to initialize the low pass filter state for the accelerometer filter.
 /// let mut params = VqfParameters {
-///     tau_accelerometer: Duration::of_seconds(10),
+///     tau_accelerometer: Duration::from_secs(10),
 ///     ..Default::default()
 /// };
 /// ```
@@ -344,11 +344,11 @@ impl Vqf {
     ///
     /// # Example
     ///
-    /// ```rs
-    /// use vqf::{Vqf, VqfParamters};
+    /// ```rust
     /// use std::time::Duration;
+    /// use vqf::{Vqf, VqfParameters};
     ///
-    /// let params = VqfParamters::default();
+    /// let params = VqfParameters::default();
     /// let imu_sample_rate = Duration::from_millis(10); // 100 Hz
     ///
     /// let vqf = Vqf::new(imu_sample_rate, imu_sample_rate, params);
@@ -413,15 +413,15 @@ impl Vqf {
     ///
     /// # Example
     ///
-    /// ```rs
-    /// use vqf::{Vqf, VqfParamters};
-    /// use std::time::Duration;
+    /// ```rust
     /// use nalgebra::Vector3;
+    /// use std::time::Duration;
+    /// use vqf::{Vqf, VqfParameters};
     ///
-    /// let params = VqfParamters::default();
+    /// let params = VqfParameters::default();
     /// let imu_sample_rate = Duration::from_millis(10); // 100 Hz
     ///
-    /// let vqf = Vqf::new(imu_sample_rate, imu_sample_rate, params);
+    /// let mut vqf = Vqf::new(imu_sample_rate, imu_sample_rate, params);
     ///
     /// let gyro_reading = Vector3::new(0.4, 0.51, 0.66);
     /// let accel_reading = Vector3::new(0., 0., -9.81);
