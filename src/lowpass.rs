@@ -1,10 +1,11 @@
 //! Module implementing low-pass filters.
 
-use nalgebra::SVector;
+use core::f32;
+use nalgebra::SMatrix;
 use std::{f32::consts::PI, time::Duration};
 
-/// An nth-order Butterworth low-pass filter for 3-dimensional signals, with a arithmetic mean initialization.
-pub struct MeanInitializedLowPassFilter<const N: usize> {
+/// An second order Butterworth low-pass filter for NxM-dimensional signals, with a arithmetic mean initialization.
+pub struct MeanInitializedLowPassFilter<const N: usize, const M: usize> {
     sample_count: usize,
     /// The denominator coefficients of the filter, assuming `a0 = 1.0`.
     a: [f32; 2],
@@ -14,10 +15,11 @@ pub struct MeanInitializedLowPassFilter<const N: usize> {
     tau: f32,
     /// The sampling rate of the filtered signal, in Hz.
     sampling_rate: f32,
-    state: [SVector<f32, N>; 2],
+    state: [SMatrix<f32, N, M>; 2],
+    pub last_output: SMatrix<f32, N, M>,
 }
 
-impl<const N: usize> MeanInitializedLowPassFilter<N> {
+impl<const N: usize, const M: usize> MeanInitializedLowPassFilter<N, M> {
     /// Create a new filter with the given time constant, sampling rate, and filter coefficients.
     #[must_use]
     pub fn new(tau: Duration, sampling_rate: f32, b: [f32; 3], a: [f32; 2]) -> Self {
@@ -28,7 +30,8 @@ impl<const N: usize> MeanInitializedLowPassFilter<N> {
             b,
             tau,
             sampling_rate,
-            state: [SVector::zeros(), SVector::zeros()],
+            last_output: SMatrix::from_element(f32::NAN),
+            state: [SMatrix::zeros(), SMatrix::zeros()],
         }
     }
 
@@ -42,7 +45,7 @@ impl<const N: usize> MeanInitializedLowPassFilter<N> {
 
     /// Filter the given signal.
     #[must_use]
-    pub fn filter(&mut self, x: SVector<f32, N>) -> SVector<f32, N> {
+    pub fn filter(&mut self, x: SMatrix<f32, N, M>) -> SMatrix<f32, N, M> {
         if !self.initialized() {
             self.sample_count += 1;
             self.state[1] += x;
@@ -53,11 +56,12 @@ impl<const N: usize> MeanInitializedLowPassFilter<N> {
         let y = self.b[0] * x + self.state[0];
         self.state[0] = self.b[1] * x - self.a[0] * y + self.state[1];
         self.state[1] = self.b[2] * x - self.a[1] * y;
-
+        self.last_output = y;
         y
     }
 }
 
+/// Create the coefficients for a second order Butterworth low-pass filter.
 pub fn second_order_butterworth(tau: Duration, sampling_time: Duration) -> ([f32; 3], [f32; 2]) {
     let tau = tau.as_secs_f32();
     let sampling_time = sampling_time.as_secs_f32();
