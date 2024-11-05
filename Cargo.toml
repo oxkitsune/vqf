@@ -3,7 +3,7 @@ description = "Implementation of the Versatile Quaternion-based Filter (VQF) alg
 edition = "2021"
 license = "MIT OR Apache-2.0"
 name = "vqf"
-version = "0.2.0"
+version = "0.2.1"
 
 [package.metadata.docs.rs]
 rustdoc-args = ["--html-in-header", "docs/katex.html"]
