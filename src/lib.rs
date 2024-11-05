@@ -137,10 +137,9 @@ pub struct VqfParameters {
     /// Maximum expected gyroscope bias, in degrees per second.
     ///
     /// This value is used to clip the bias estimate and the measurement error
-    /// in the bias estimation update step (See
-    /// [`Vqf::bias_estimation_step`]). It is further used by the rest
-    /// detection algorithm in order to not regard measurements with a large
-    /// but constant angular rate as rest.
+    /// in the bias estimation update step.
+    /// It is further used by the rest detection algorithm in order to not
+    /// regard measurements with a large but constant angular rate as rest.
     pub bias_clip: f32,
     /// Standard deviation of the converged bias estimation uncertainty during
     /// motion, in degrees per second.
@@ -338,8 +337,8 @@ impl Vqf {
 
     /// Returns `true` if a rest has been detected.
     ///
-    /// This will only return `true` if [`VqfState::rest`] is not `None`, and
-    /// the duration is `>=` [`VqfParameters::rest_min_duration`].
+    /// This will only return `true` if the duration is `>=`
+    /// [`VqfParameters::rest_min_duration`].
     #[must_use]
     pub fn is_rest_phase(&self) -> bool {
         self.state
