@@ -1,5 +1,28 @@
-//! An implementation of the Vector-Quaternion Filter (VQF) for orientation
-//! estimation.
+//! # Versatile Quaternion Filter (VQF) for Orientation Estimation.
+//!
+//! This crate implements the VQF based on [this paper](https://arxiv.org/pdf/2203.17024).
+//!
+//! ⚠️ Currently this crate does *not* implement the magnometer update.
+//!
+//! # Example
+//! ```rust
+//! use nalgebra::Vector3;
+//! use std::time::Duration;
+//! use vqf::{Vqf, VqfParameters};
+//!
+//! let gyro_rate = Duration::from_secs_f32(0.01); // 100Hz
+//! let accel_rate = Duration::from_secs_f32(0.01);
+//! let params = VqfParameters::default();
+//!
+//! let mut vqf = Vqf::new(gyro_rate, accel_rate, params);
+//!
+//! let gyro_data = Vector3::new(0.01, 0.02, -0.01); // rad/s
+//! let accel_data = Vector3::new(0.0, 0.0, 9.81); // m/s^2
+//! vqf.update(gyro_data, accel_data);
+//!
+//! let orientation = vqf.orientation();
+//! println!("Current orientation: {:?}", orientation);
+//! ```
 
 mod lowpass;
 
@@ -100,7 +123,25 @@ impl VqfState {
     }
 }
 
-/// Parameters for the [`Vqf`] system.
+/// Parameters for configuring the [`Vqf`] filter.
+///
+/// The [`Default`] implementation uses the default parameters as described in
+/// the [`original implementation`].
+///
+/// # Example
+///
+/// ```rs
+/// use vqf::VqfParameters;
+/// use std::time::Duration;
+///
+/// // Initialize the default parameters, but set `tau_acc` to 10 seconds
+/// // making it take longer to initialize the low pass filter state for the accelerometer filter.
+/// let mut params = VqfParameters {
+///     tau_accelerometer: Duration::of_seconds(10),
+///     ..Default::default()
+/// };
+/// ```
+/// [original implementation]: `https://vqf.readthedocs.io/en/latest/ref_cpp_params.html`
 #[derive(Debug, Clone, PartialEq)]
 pub struct VqfParameters {
     /// Time constant $\tau_{acc}$ for accelerometer low-pass filtering.
@@ -293,7 +334,25 @@ pub struct Vqf {
 }
 
 impl Vqf {
-    /// Create a new VQF filter with the given parameters.
+    /// Creates a new VQF filter instance.
+    ///
+    /// # Parameters
+    /// - `gyro_sampling_rate`: Duration between gyroscope samples.
+    /// - `accel_sampling_rate`: Duration between accelerometer samples.
+    /// - `params`: Filter parameters for controlling bias estimation and filter
+    ///   behavior.
+    ///
+    /// # Example
+    ///
+    /// ```rs
+    /// use vqf::{Vqf, VqfParamters};
+    /// use std::time::Duration;
+    ///
+    /// let params = VqfParamters::default();
+    /// let imu_sample_rate = Duration::from_millis(10); // 100 Hz
+    ///
+    /// let vqf = Vqf::new(imu_sample_rate, imu_sample_rate, params);
+    /// ```
     #[must_use]
     pub fn new(
         gyro_sampling_rate: Duration,
@@ -346,8 +405,29 @@ impl Vqf {
             .is_some_and(|rest_duration| rest_duration >= self.parameters.rest_min_duration)
     }
 
-    /// Update step of the filter, using the gyroscope and accelerometer
-    /// readings.
+    /// Updates the filter with new gyroscope and accelerometer readings.
+    ///
+    /// # Parameters
+    /// - `gyro`: Gyroscope reading in radians per second.
+    /// - `accel`: Accelerometer reading in meters/s^2.
+    ///
+    /// # Example
+    ///
+    /// ```rs
+    /// use vqf::{Vqf, VqfParamters};
+    /// use std::time::Duration;
+    /// use nalgebra::Vector3;
+    ///
+    /// let params = VqfParamters::default();
+    /// let imu_sample_rate = Duration::from_millis(10); // 100 Hz
+    ///
+    /// let vqf = Vqf::new(imu_sample_rate, imu_sample_rate, params);
+    ///
+    /// let gyro_reading = Vector3::new(0.4, 0.51, 0.66);
+    /// let accel_reading = Vector3::new(0., 0., -9.81);
+    ///
+    /// vqf.update(gyro_reading, accel_reading);
+    /// ```
     pub fn update(&mut self, gyro: Vector3<f32>, accel: Vector3<f32>) {
         println!("update");
         println!("gyro: {:?}", self.state.gyroscope_quat);
