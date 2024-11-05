@@ -1,12 +1,12 @@
 [package]
-name = "vqf"
 description = "Implementation of the Versatile Quaternion-based Filter (VQF) algorithm for sensor fusion."
-license = "MIT OR Apache-2.0"
-version = "0.2.0"
 edition = "2021"
+license = "MIT OR Apache-2.0"
+name = "vqf"
+version = "0.2.0"
 
 [package.metadata.docs.rs]
-rustdoc-args = ["--html-in-header", "katex.html"]
+rustdoc-args = ["--html-in-header", "docs/katex.html"]
 
 [lints.rust]
 missing_docs = "warn"
