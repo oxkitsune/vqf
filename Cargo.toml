@@ -1,9 +1,12 @@
 [package]
+authors = ["Gijs de Jong"]
 description = "Implementation of the Versatile Quaternion-based Filter (VQF) algorithm for sensor fusion."
 edition = "2021"
 license = "MIT OR Apache-2.0"
 name = "vqf"
-version = "0.2.1"
+readme = "README.md"
+repository = "https://github.com/oxkitsune/vqf"
+version = "0.2.2"
 
 [package.metadata.docs.rs]
 rustdoc-args = ["--html-in-header", "docs/katex.html"]
