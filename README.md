@@ -1,9 +1,11 @@
-# VQF
+# vqf 🧭
 
 [![License](https://img.shields.io/badge/license-MIT%2FApache-blue.svg)](https://github.com/oxkitsune/vqf#license)
 [![Crates.io](https://img.shields.io/crates/v/vqf.svg)](https://crates.io/crates/vqf)
 [![Downloads](https://img.shields.io/crates/d/vqf.svg)](https://crates.io/crates/vqf)
 [![Docs](https://docs.rs/vqf/badge.svg)](https://docs.rs/vqf/latest/vqf/)
+
+![demo](https://github.com/user-attachments/assets/2934d825-be6f-4c5d-a2b5-f9deefcf5973)
 
 A Rust implementation of the Versatile Quaternion-based Filter (VQF) algorithm, as described in [this paper](https://arxiv.org/pdf/2203.17024).
 
