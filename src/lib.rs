@@ -24,15 +24,19 @@
 //! println!("Current orientation: {:?}", orientation);
 //! ```
 
-mod lowpass;
+pub mod low_pass_filter;
 
 use core::f32;
 use std::time::Duration;
 
-use lowpass::{second_order_butterworth, MeanInitializedLowPassFilter};
-use nalgebra::{Matrix3, Quaternion, SVector, UnitQuaternion, Vector2, Vector3};
+use low_pass_filter::{second_order_butterworth, MeanInitializedLowPassFilter};
+use nalgebra::{Matrix3, Quaternion, SVector, SimdPartialOrd, UnitQuaternion, Vector2, Vector3};
+
+/// Scale factor for the estimated bias, used for numerical stability.
+const BIAS_SCALE: f32 = 100.0;
 
 /// The state of a [`Vqf`] filter.
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct VqfState {
     /// Angular velocity strapdown integration quaternion.
     pub gyroscope_quat: UnitQuaternion<f32>,
@@ -43,7 +47,7 @@ pub struct VqfState {
     /// # Important
     ///
     /// If this is not [`Option::None`], it does not guarantee the system is in
-    /// rest. See [`Self::is_rest()`] for more.
+    /// rest. See [`Vqf::is_rest_phase()`] for more.
     rest: Option<Duration>,
     /// The low-pass filter state for the accelerometer readings.
     pub accelerometer_low_pass: MeanInitializedLowPassFilter<3, 1>,
@@ -118,12 +122,12 @@ impl VqfState {
                 coefficients.accel_a,
             ),
             bias: Vector3::zeros(),
-            bias_p: Matrix3::from_element(f32::NAN),
+            bias_p: coefficients.bias.p0 * Matrix3::identity(),
         }
     }
 }
 
-/// Parameters for configuring the [`Vqf`] filter.
+/// Parameters for configuring a [`Vqf`].
 ///
 /// The [`Default`] implementation uses the default parameters as described in
 /// the [`original implementation`].
@@ -269,7 +273,7 @@ impl VqfBiasCoefficients {
     #[must_use]
     fn new(accelerometer_rate: Duration, params: &VqfParameters) -> Self {
         // line 17 of Algorithm 2, the initial variance of the bias
-        let p0 = (params.bias_sigma_initial * 100.0).powi(2);
+        let p0 = (params.bias_sigma_initial * BIAS_SCALE).powi(2);
 
         // line 18 of Algorithm 2
         // System noise increases the variance from 0 to (0.1 °/s)^2 in
@@ -278,12 +282,12 @@ impl VqfBiasCoefficients {
             / params.bias_forgetting_time.as_secs_f32();
 
         // line 19 of Algorithm 2
-        let p_motion = (params.bias_sigma_motion * 100.0).powi(2);
+        let p_motion = (params.bias_sigma_motion * BIAS_SCALE).powi(2);
         let motion_w = p_motion.powi(2) / v + p_motion;
         let vertical_w = motion_w / params.bias_vertical_forgetting_factor.max(1e-10);
 
         // line 20 of Algorithm 2
-        let p_rest = (params.bias_sigma_rest * 100.0).powi(2);
+        let p_rest = (params.bias_sigma_rest * BIAS_SCALE).powi(2);
         let rest_w = p_rest.powi(2) / v + p_rest;
 
         Self {
@@ -296,7 +300,7 @@ impl VqfBiasCoefficients {
     }
 }
 
-/// Coefficients used for the [`Vqf`] system.
+/// Coefficients used for in a [`Vqf`] system.
 #[derive(Debug, Clone, PartialEq)]
 pub struct VqfCoefficients {
     /// Numerator coefficients for the acceleration low-pass filter.
@@ -319,7 +323,26 @@ pub struct VqfCoefficients {
     bias: VqfBiasCoefficients,
 }
 
-/// The VQF filter.
+/// Filter for orientation estimation using accelerometer and gyroscope
+/// measurements.
+///
+/// # Example
+///
+/// ```rust
+/// use nalgebra::Vector3;
+/// use std::time::Duration;
+/// use vqf::{Vqf, VqfParameters};
+///
+/// let params = VqfParameters::default();
+/// let imu_sample_rate = Duration::from_secs_f32(0.01); // 100 Hz
+///
+/// let mut vqf = Vqf::new(imu_sample_rate, imu_sample_rate, params);
+///
+/// vqf.update(Vector3::new(0.1, 0.1, 0.5), Vector3::new(0., 0., -9.81));
+///
+/// let orientation = vqf.orientation();
+/// assert!(orientation.coords.iter().all(|&x| x.is_finite()));
+/// ```
 pub struct Vqf {
     /// The filter coefficients.
     pub coefficients: VqfCoefficients,
@@ -398,6 +421,7 @@ impl Vqf {
     ///
     /// This will only return `true` if the duration is `>=`
     /// [`VqfParameters::rest_min_duration`].
+    #[inline]
     #[must_use]
     pub fn is_rest_phase(&self) -> bool {
         self.state
@@ -429,10 +453,6 @@ impl Vqf {
     /// vqf.update(gyro_reading, accel_reading);
     /// ```
     pub fn update(&mut self, gyro: Vector3<f32>, accel: Vector3<f32>) {
-        println!("update");
-        println!("gyro: {:?}", self.state.gyroscope_quat);
-        println!("accel: {:?}", self.state.accelerometer_quat);
-        println!("\n\n");
         self.gyro_update(gyro);
         self.accel_update(accel);
     }
@@ -445,21 +465,25 @@ impl Vqf {
         }
 
         let unbiased_gyro = gyro - self.state.bias;
+        let gyro_norm = unbiased_gyro.norm();
 
-        println!("gyro norm: {}", unbiased_gyro.norm());
-        if unbiased_gyro.norm() > f32::EPSILON {
-            // predict the new orientation (eq. 3)
-            let angle = self.gyro_rate.as_secs_f32() * gyro.norm();
-
-            let cosine = angle.cos();
-            let sine = angle.sin();
-            let gyro_step = Quaternion::new(cosine, sine * gyro.x, sine * gyro.y, sine * gyro.z);
-
-            self.state.gyroscope_quat =
-                UnitQuaternion::from_quaternion(self.state.gyroscope_quat.quaternion() * gyro_step);
+        // if the gyro norm is approaching zero, do not perform update
+        if gyro_norm <= f32::EPSILON {
+            return;
         }
+
+        // predict the new orientation (eq. 3)
+        let half_angle = (self.gyro_rate.as_secs_f32() * gyro_norm) / 2.;
+
+        let cosine = (half_angle).cos();
+        let sine = (half_angle).sin() / gyro_norm;
+        let gyro_step = Quaternion::new(cosine, sine * gyro.x, sine * gyro.y, sine * gyro.z);
+
+        self.state.gyroscope_quat =
+            UnitQuaternion::from_quaternion(self.state.gyroscope_quat.quaternion() * gyro_step);
     }
 
+    #[inline]
     fn gyro_rest_detection(&mut self, gyro: Vector3<f32>) {
         let gyro_lp = self.state.rest_gyro_low_pass.filter(gyro);
         let deviation = gyro - gyro_lp;
@@ -510,6 +534,7 @@ impl Vqf {
         self.bias_estimation_step(acc_earth);
     }
 
+    #[inline]
     fn accel_rest_detection(&mut self, acc: Vector3<f32>) {
         let accel_lp = self.state.rest_accel_low_pass.filter(acc);
         let deviation = acc - accel_lp;
@@ -599,7 +624,8 @@ impl Vqf {
 
         if let Some(w) = w {
             // clip disagreement to -2..2 degrees
-            let e = e.map(|x| x.clamp(-bias_clip, bias_clip));
+            let bias_clip_vector = Vector3::repeat(bias_clip);
+            let e = e.simd_clamp(-bias_clip_vector, bias_clip_vector);
 
             // step 2: K = P  R^T (W + R P R^T)^-1 (line 36)
             let w_diag = Matrix3::from_diagonal(&w);
@@ -608,7 +634,6 @@ impl Vqf {
                 .try_inverse()
                 .expect("(W + R P R^T) isn't a square matrix");
             let k = self.state.bias_p * r.transpose() * w_r_p_r_t_inv;
-
             // step 3: b = b + k e (line 37)
             bias += k * e;
 

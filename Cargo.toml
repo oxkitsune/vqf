@@ -6,7 +6,7 @@ license = "MIT OR Apache-2.0"
 name = "vqf"
 readme = "README.md"
 repository = "https://github.com/oxkitsune/vqf"
-version = "0.2.3"
+version = "0.3.0"
 
 [package.metadata.docs.rs]
 rustdoc-args = ["--html-in-header", "docs/katex.html"]
@@ -21,6 +21,7 @@ all = { level = "warn", priority = -1 }
 inline_always = "allow"
 pedantic = { level = "warn", priority = -1 }
 
+module_name_repetitions = "allow"
 # this lint doesn't play nice with LaTeX in doc comments.
 doc-markdown = "allow"
 
