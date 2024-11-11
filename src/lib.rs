@@ -429,6 +429,14 @@ impl Vqf {
             .is_some_and(|rest_duration| rest_duration >= self.parameters.rest_min_duration)
     }
 
+    /// Returns the 6D orientation quaternion.
+    ///
+    /// This is the orientation without the magnotometer correction.
+    #[must_use]
+    pub fn orientation(&self) -> UnitQuaternion<f32> {
+        self.state.accelerometer_quat * self.state.gyroscope_quat
+    }
+
     /// Updates the filter with new gyroscope and accelerometer readings.
     ///
     /// # Parameters
@@ -645,11 +653,59 @@ impl Vqf {
         }
     }
 
-    /// Returns the 6D orientation quaternion.
+    /// Resets the filter orientation to a specific quaternion.
     ///
-    /// This is the orientation without the magnotometer correction.
-    #[must_use]
-    pub fn orientation(&self) -> UnitQuaternion<f32> {
-        self.state.accelerometer_quat * self.state.gyroscope_quat
+    /// This will reset both the gyroscope and accelerometer quaternions,
+    /// reinitialize the bias estimation, and reset all filter states.
+    ///
+    /// # Parameters
+    /// - `quat`: The quaternion to reset the orientation to.
+    pub fn reset_orientation(&mut self, quat: UnitQuaternion<f32>) {
+        // Reset quaternions
+        self.state.gyroscope_quat = quat;
+        self.state.accelerometer_quat = UnitQuaternion::identity();
+
+        // Reset rest detection
+        self.state.rest = None;
+
+        // Reset all filter states
+        self.state.accelerometer_low_pass = MeanInitializedLowPassFilter::new(
+            self.parameters.tau_accelerometer,
+            self.accel_rate,
+            self.coefficients.accel_b,
+            self.coefficients.accel_a,
+        );
+
+        self.state.rest_gyro_low_pass = MeanInitializedLowPassFilter::new(
+            self.parameters.rest_filter_tau,
+            self.gyro_rate,
+            self.coefficients.rest_gyro_b,
+            self.coefficients.rest_gyro_a,
+        );
+
+        self.state.rest_accel_low_pass = MeanInitializedLowPassFilter::new(
+            self.parameters.rest_filter_tau,
+            self.accel_rate,
+            self.coefficients.rest_accel_b,
+            self.coefficients.rest_accel_a,
+        );
+
+        self.state.motion_bias_estimate_rotation_low_pass = MeanInitializedLowPassFilter::new(
+            self.parameters.tau_accelerometer,
+            self.accel_rate,
+            self.coefficients.accel_b,
+            self.coefficients.accel_a,
+        );
+
+        self.state.motion_bias_estimate_low_pass = MeanInitializedLowPassFilter::new(
+            self.parameters.tau_accelerometer,
+            self.accel_rate,
+            self.coefficients.accel_b,
+            self.coefficients.accel_a,
+        );
+
+        // Reset bias estimation
+        self.state.bias = Vector3::zeros();
+        self.state.bias_p = self.coefficients.bias.p0 * Matrix3::identity();
     }
 }
