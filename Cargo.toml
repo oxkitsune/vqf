@@ -25,5 +25,11 @@ module_name_repetitions = "allow"
 # this lint doesn't play nice with LaTeX in doc comments.
 doc-markdown = "allow"
 
+[features]
+default = []
+
+serde = ["dep:serde", "nalgebra/serde", "nalgebra/serde-serialize"]
+
 [dependencies]
 nalgebra = { version = "0.32.6" }
+serde = { version = "1.0.132", features = ["derive"], optional = true }

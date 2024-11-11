@@ -53,6 +53,7 @@ use std::{f32::consts::PI, time::Duration};
 /// assert_ne!(filtered_signal, Vector3::from_element(5. / 3.));
 /// ```
 #[derive(Debug, Clone, Copy, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct MeanInitializedLowPassFilter<const N: usize, const M: usize> {
     /// The number of samples processed by this filter.
     sample_count: u32,

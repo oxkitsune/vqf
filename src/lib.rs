@@ -37,6 +37,7 @@ const BIAS_SCALE: f32 = 100.0;
 
 /// The state of a [`Vqf`] filter.
 #[derive(Debug, Clone, Copy, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct VqfState {
     /// Angular velocity strapdown integration quaternion.
     pub gyroscope_quat: UnitQuaternion<f32>,
@@ -147,6 +148,7 @@ impl VqfState {
 /// ```
 /// [original implementation]: `https://vqf.readthedocs.io/en/latest/ref_cpp_params.html`
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct VqfParameters {
     /// Time constant $\tau_{acc}$ for accelerometer low-pass filtering.
     ///
@@ -249,6 +251,7 @@ impl Default for VqfParameters {
 
 /// Coefficients for gyroscope bias estimation.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct VqfBiasCoefficients {
     /// Variance of the initial gyroscope bias estimate.
     p0: f32,
@@ -302,6 +305,7 @@ impl VqfBiasCoefficients {
 
 /// Coefficients used for in a [`Vqf`] system.
 #[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct VqfCoefficients {
     /// Numerator coefficients for the acceleration low-pass filter.
     accel_b: [f32; 3],
@@ -343,6 +347,7 @@ pub struct VqfCoefficients {
 /// let orientation = vqf.orientation();
 /// assert!(orientation.coords.iter().all(|&x| x.is_finite()));
 /// ```
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct Vqf {
     /// The filter coefficients.
     pub coefficients: VqfCoefficients,
