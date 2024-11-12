@@ -662,9 +662,6 @@ impl Vqf {
     ///
     /// This will reset both the gyroscope and accelerometer quaternions,
     /// reinitialize the bias estimation, and reset all filter states.
-    ///
-    /// # Parameters
-    /// - `quat`: The quaternion to reset the orientation to.
     pub fn reset_orientation(&mut self, quat: UnitQuaternion<f32>) {
         // Reset quaternions
         self.state.gyroscope = quat;
