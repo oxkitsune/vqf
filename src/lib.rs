@@ -466,13 +466,20 @@ impl Vqf {
     /// vqf.update(gyro_reading, accel_reading);
     /// ```
     pub fn update(&mut self, gyro: Vector3<f32>, accel: Vector3<f32>) {
-        self.gyro_update(gyro);
-        self.accel_update(accel);
+        self.gyroscope_update(gyro);
+        self.accelerometer_update(accel);
     }
 
     /// Perform the gyroscope update step, using the gyroscope readings in
     /// rad/s.
-    fn gyro_update(&mut self, gyro: Vector3<f32>) {
+    ///
+    /// # Important
+    ///
+    /// Prefer using [`Vqf::update`] instead of this method, only use this
+    /// method if the gyroscope and accelerometer have different sampling
+    /// rates, and you want to update the filter with the gyroscope readings
+    /// only.
+    pub fn gyroscope_update(&mut self, gyro: Vector3<f32>) {
         if self.parameters.do_rest_bias_estimation {
             self.gyro_rest_detection(gyro);
         }
@@ -512,7 +519,14 @@ impl Vqf {
 
     /// Perform the accelerometer update step, using the accelerometer readings
     /// in m/s^2.
-    fn accel_update(&mut self, accel: Vector3<f32>) {
+    ///
+    /// # Important
+    ///
+    /// Prefer using [`Vqf::update`] instead of this method, only use this
+    /// method if the gyroscope and accelerometer have different sampling
+    /// rates, and you want to update the filter with the accelerometer
+    /// readings only.
+    pub fn accelerometer_update(&mut self, accel: Vector3<f32>) {
         // ignore 0 acceleration
         if accel == Vector3::zeros() {
             return;
@@ -642,19 +656,23 @@ impl Vqf {
 
             // step 2: K = P  R^T (W + R P R^T)^-1 (line 36)
             let w_diag = Matrix3::from_diagonal(&w);
-            let w_r_p_r_t = w_diag + (r * self.state.bias_p * r.transpose());
+            let r_transpose = r.transpose();
+            let r_p = r * self.state.bias_p;
+
+            let w_r_p_r_t = w_diag + (r_p * r_transpose);
             let w_r_p_r_t_inv = w_r_p_r_t
                 .try_inverse()
                 .expect("(W + R P R^T) isn't a square matrix");
-            let k = self.state.bias_p * r.transpose() * w_r_p_r_t_inv;
+            let k = self.state.bias_p * r_transpose * w_r_p_r_t_inv;
+
             // step 3: b = b + k e (line 37)
             bias += k * e;
 
             // step 4: P = P - K R P (line 38)
-            self.state.bias_p -= k * r * self.state.bias_p;
+            self.state.bias_p -= k * r_p;
 
             // ensure that the new bias estimate is within the allowed range
-            self.state.bias = bias.map(|x| x.clamp(-bias_clip, bias_clip));
+            self.state.bias = bias.simd_clamp(-bias_clip_vector, bias_clip_vector);
         }
     }
 
