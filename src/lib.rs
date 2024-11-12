@@ -588,7 +588,7 @@ impl Vqf {
         // line 25 from Algorithm 2
         let bias_lp = self.state.motion_bias_estimate_low_pass.filter(rb_hat);
 
-        // update the bias estimate for the respecive Kalman filter
+        // update the bias estimate for the respective Kalman filter
         let (e, r, w) = if self.is_rest_phase() && self.parameters.do_rest_bias_estimation {
             (
                 self.state.rest_gyro_low_pass.last_output - bias,
