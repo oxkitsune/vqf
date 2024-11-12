@@ -40,9 +40,9 @@ const BIAS_SCALE: f32 = 100.0;
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct VqfState {
     /// Angular velocity strapdown integration quaternion.
-    pub gyroscope_quat: UnitQuaternion<f32>,
+    pub gyroscope: UnitQuaternion<f32>,
     /// Inclination correction quaternion.
-    pub accelerometer_quat: UnitQuaternion<f32>,
+    pub accelerometer: UnitQuaternion<f32>,
     /// The current duration the system has been in `rest` state.
     ///
     /// # Important
@@ -87,8 +87,8 @@ impl VqfState {
         accel_rate: Duration,
     ) -> Self {
         Self {
-            gyroscope_quat: UnitQuaternion::identity(),
-            accelerometer_quat: UnitQuaternion::identity(),
+            gyroscope: UnitQuaternion::identity(),
+            accelerometer: UnitQuaternion::identity(),
             rest: None,
             accelerometer_low_pass: MeanInitializedLowPassFilter::new(
                 params.tau_accelerometer,
@@ -439,7 +439,7 @@ impl Vqf {
     /// This is the orientation without the magnotometer correction.
     #[must_use]
     pub fn orientation(&self) -> UnitQuaternion<f32> {
-        self.state.accelerometer_quat * self.state.gyroscope_quat
+        self.state.accelerometer * self.state.gyroscope
     }
 
     /// Updates the filter with new gyroscope and accelerometer readings.
@@ -492,8 +492,8 @@ impl Vqf {
         let sine = (half_angle).sin() / gyro_norm;
         let gyro_step = Quaternion::new(cosine, sine * gyro.x, sine * gyro.y, sine * gyro.z);
 
-        self.state.gyroscope_quat =
-            UnitQuaternion::from_quaternion(self.state.gyroscope_quat.quaternion() * gyro_step);
+        self.state.gyroscope =
+            UnitQuaternion::from_quaternion(self.state.gyroscope.quaternion() * gyro_step);
     }
 
     #[inline]
@@ -523,10 +523,10 @@ impl Vqf {
         }
 
         // first correct the accelerometer reading for gravity
-        let acc_earth = self.state.gyroscope_quat * accel;
+        let acc_earth = self.state.gyroscope * accel;
         let accel_low_pass = self.state.accelerometer_low_pass.filter(acc_earth);
 
-        let acc_earth = (self.state.accelerometer_quat * accel_low_pass).normalize();
+        let acc_earth = (self.state.accelerometer * accel_low_pass).normalize();
 
         // inclination correction
         let q_w = ((acc_earth.z + 1.0) / 2.0).sqrt(); // equation 4
@@ -543,7 +543,7 @@ impl Vqf {
             UnitQuaternion::from_quaternion(Quaternion::new(0., 1., 0., 0.))
         };
 
-        self.state.accelerometer_quat = inclination_correction * self.state.accelerometer_quat;
+        self.state.accelerometer = inclination_correction * self.state.accelerometer;
         self.bias_estimation_step(acc_earth);
     }
 
@@ -667,8 +667,8 @@ impl Vqf {
     /// - `quat`: The quaternion to reset the orientation to.
     pub fn reset_orientation(&mut self, quat: UnitQuaternion<f32>) {
         // Reset quaternions
-        self.state.gyroscope_quat = quat;
-        self.state.accelerometer_quat = UnitQuaternion::identity();
+        self.state.gyroscope = quat;
+        self.state.accelerometer = UnitQuaternion::identity();
 
         // Reset rest detection
         self.state.rest = None;
