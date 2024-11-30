@@ -138,7 +138,6 @@ impl<const N: usize, const M: usize> MeanInitializedLowPassFilter<N, M> {
     }
 
     /// Computes the arithmetic mean of samples for filter initialization.
-
     ///
     /// # Note
     ///

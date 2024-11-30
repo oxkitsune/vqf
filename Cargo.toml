@@ -31,5 +31,5 @@ default = []
 serde = ["dep:serde", "nalgebra/serde", "nalgebra/serde-serialize"]
 
 [dependencies]
-nalgebra = { version = "0.32.6" }
+nalgebra = { version = "0.33.2" }
 serde = { version = "1.0.132", features = ["derive"], optional = true }
